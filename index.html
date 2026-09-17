@@ -116,6 +116,27 @@
   /* ---------- Overview tab ---------- */
   .hero-total .figure { font-size: 32px; font-weight: 500; color: var(--teal); line-height: 1.1; }
   .hero-total .label { color: var(--ink-soft); font-size: 13px; margin-top: 4px; }
+  .mc-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .mc-delta.up { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+  .mc-delta.down { color: var(--teal); background: var(--teal-soft); }
+  .mc-delta.flat { color: var(--ink-soft); background: var(--line-soft); }
+
+  .mc-chart { display: flex; align-items: flex-end; gap: 8px; height: 110px; padding-top: 6px; }
+  .mc-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; }
+  .mc-bar { width: 100%; max-width: 34px; border-radius: 5px 5px 2px 2px; background: var(--line-soft); transition: height 0.25s ease; min-height: 3px; }
+  .mc-bar.current { background: var(--teal); }
+  .mc-bar-amt { font-size: 10px; color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
+  .mc-bar-label { font-size: 11px; color: var(--ink-faint); }
+  .mc-bar-label.current { color: var(--teal); font-weight: 700; }
 
   .cat-summary-row { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
   .cat-summary-row:last-child { border-bottom: none; }
@@ -139,15 +160,16 @@
   .empty-note { color: var(--ink-soft); font-size: 13px; }
 
   /* ---------- Calendar tab ---------- */
-  .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 6px; }
+  .weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-bottom: 6px; }
   .weekdays div { text-align: center; font-size: 11px; color: var(--ink-soft); padding: 4px 0; }
-  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
   .day {
     position: relative;
+    min-width: 0;
     aspect-ratio: 1 / 0.9;
     border: 1px solid var(--line-soft);
     border-radius: var(--radius-s);
-    padding: 5px;
+    padding: 4px 3px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -156,13 +178,18 @@
     transition: border-color 0.12s ease, background 0.12s ease;
     text-align: left;
     color: var(--ink);
+    overflow: hidden;
   }
   .day:hover { border-color: var(--teal); }
   .day:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
   .day.empty { visibility: hidden; cursor: default; }
   .day.today .num { color: var(--teal); font-weight: 700; }
-  .day .num { font-size: 12px; }
-  .day .amt { font-size: 10px; color: var(--ochre); font-weight: 600; line-height: 1.15; word-break: break-word; }
+  .day .num { font-size: 11px; }
+  .day .amt { font-size: 9px; color: var(--ochre); font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 420px) {
+    .day .num { font-size: 10px; }
+    .day .amt { font-size: 8px; }
+  }
 
   /* ---------- Categories tab ---------- */
   .cat-manage-row {
@@ -420,6 +447,12 @@
     <div class="card hero-total">
       <div class="figure" id="ovTotal">0 ₫</div>
       <div class="label">Tổng chi tiêu trong tháng</div>
+      <div class="mc-delta" id="ovDelta"></div>
+    </div>
+
+    <div class="card">
+      <h3>So sánh theo tháng</h3>
+      <div id="monthCompareChart"></div>
     </div>
 
     <div class="card">
@@ -697,6 +730,15 @@
   }
 
   function formatVND(n) { return Math.round(n).toLocaleString("vi-VN") + " ₫"; }
+  function formatCompactVND(n) {
+    n = Math.round(n);
+    if (n >= 1000000) {
+      var tr = Math.round((n / 1000000) * 10) / 10;
+      return String(tr).replace(".", ",") + "tr";
+    }
+    if (n >= 1000) return Math.round(n / 1000) + "k";
+    return n + "đ";
+  }
   function pad2(n) { return n < 10 ? "0" + n : "" + n; }
   function dateKey(y, m, d) { return y + "-" + pad2(m + 1) + "-" + pad2(d); }
   function isoToday() { var t = new Date(); return dateKey(t.getFullYear(), t.getMonth(), t.getDate()); }
@@ -775,6 +817,61 @@
   }
 
   /* ---------------- Overview ---------------- */
+  function monthTotalFor(year, month) {
+    var list = monthEntries(year, month);
+    var sum = 0;
+    for (var i = 0; i < list.length; i++) sum += Number(list[i].item.amount) || 0;
+    return sum;
+  }
+
+  function renderMonthCompareChart() {
+    var MONTHS_BACK = 6;
+    var points = [];
+    for (var i = MONTHS_BACK - 1; i >= 0; i--) {
+      var d = new Date(state.year, state.month - i, 1);
+      points.push({ year: d.getFullYear(), month: d.getMonth(), total: monthTotalFor(d.getFullYear(), d.getMonth()) });
+    }
+    var max = Math.max.apply(null, points.map(function (p) { return p.total; }).concat([1]));
+
+    var chartEl = document.getElementById("monthCompareChart");
+    chartEl.innerHTML = '<div class="mc-chart">' + points.map(function (p) {
+      var isCurrent = (p.year === state.year && p.month === state.month);
+      var hPct = max > 0 ? Math.max((p.total / max) * 100, p.total > 0 ? 4 : 0) : 0;
+      return '<div class="mc-bar-wrap">' +
+        (p.total > 0 ? '<div class="mc-bar-amt">' + formatCompactVND(p.total) + '</div>' : '') +
+        '<div class="mc-bar' + (isCurrent ? ' current' : '') + '" style="height:' + hPct + '%"></div>' +
+        '<div class="mc-bar-label' + (isCurrent ? ' current' : '') + '">T' + (p.month + 1) + '</div>' +
+        '</div>';
+    }).join("") + '</div>';
+
+    // delta badge: current month vs previous month
+    var deltaEl = document.getElementById("ovDelta");
+    if (points.length >= 2) {
+      var curr = points[points.length - 1].total;
+      var prev = points[points.length - 2].total;
+      if (prev === 0 && curr === 0) {
+        deltaEl.innerHTML = "";
+      } else if (prev === 0) {
+        deltaEl.className = "mc-delta up";
+        deltaEl.textContent = "Tháng trước chưa có dữ liệu để so sánh";
+      } else {
+        var pct = Math.round(((curr - prev) / prev) * 100);
+        if (pct > 0) {
+          deltaEl.className = "mc-delta up";
+          deltaEl.textContent = "▲ Tăng " + pct + "% so với tháng trước";
+        } else if (pct < 0) {
+          deltaEl.className = "mc-delta down";
+          deltaEl.textContent = "▼ Giảm " + Math.abs(pct) + "% so với tháng trước";
+        } else {
+          deltaEl.className = "mc-delta flat";
+          deltaEl.textContent = "Bằng tháng trước";
+        }
+      }
+    } else {
+      deltaEl.innerHTML = "";
+    }
+  }
+
   function renderOverview() {
     document.getElementById("overviewMonthSub").textContent = MONTH_NAMES[state.month] + " " + state.year;
 
@@ -782,6 +879,8 @@
     var total = 0;
     list.forEach(function (e) { total += Number(e.item.amount) || 0; });
     document.getElementById("ovTotal").textContent = formatVND(total);
+
+    renderMonthCompareChart();
 
     var totals = categoryTotals(state.year, state.month);
     var rows = Object.keys(totals).map(function (c) { return { name: c, total: totals[c] }; })
@@ -852,7 +951,8 @@
       var total = dayTotal(key);
       var amtEl = document.createElement("div");
       amtEl.className = "amt";
-      amtEl.innerHTML = total > 0 ? formatVND(total) : "&nbsp;";
+      amtEl.innerHTML = total > 0 ? formatCompactVND(total) : "&nbsp;";
+      if (total > 0) cell.title = formatVND(total);
       cell.appendChild(amtEl);
 
       cell.addEventListener("click", (function (k) { return function () { openDayModal(k); }; })(key));
