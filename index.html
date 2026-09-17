@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sổ Chi Tiêu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.52.1/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --paper: #f2f1ec;
+    --paper-raised: #ffffff;
+    --ink: #22271f;
+    --ink-soft: #5b6357;
+    --ink-faint: #8b9186;
+    --line: #d9d7cc;
+    --line-soft: #e7e5da;
+    --teal: #1f4b43;
+    --teal-soft: #e4ece9;
+    --ochre: #b8792a;
+    --ochre-soft: #f3e6d2;
+    --danger: #a13d3d;
+    --radius-s: 6px;
+    --radius-m: 10px;
+    --radius-l: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1b1e19; --paper-raised: #24281f; --ink: #eceae1; --ink-soft: #a4ac9a;
+      --ink-faint: #767f6f; --line: #3a3f33; --line-soft: #2c3026; --teal: #7fbfae;
+      --teal-soft: #24332e; --ochre: #dba35c; --ochre-soft: #372c1c; --danger: #d97d7d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1b1e19; --paper-raised: #24281f; --ink: #eceae1; --ink-soft: #a4ac9a;
+    --ink-faint: #767f6f; --line: #3a3f33; --line-soft: #2c3026; --teal: #7fbfae;
+    --teal-soft: #24332e; --ochre: #dba35c; --ochre-soft: #372c1c; --danger: #d97d7d;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Work Sans', sans-serif;
+    min-height: 100vh;
+  }
+  h1, h2, h3, .serif { font-family: 'Fraunces', serif; }
+  button { font-family: inherit; }
+
+  .app {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 18px 96px;
+    min-height: 100vh;
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ---------- Shared header ---------- */
+  .page-title {
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0 0 4px;
+  }
+  .page-sub {
+    color: var(--ink-soft);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .month-nav button {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--ink);
+    font-size: 15px;
+  }
+  .month-nav button:hover { border-color: var(--teal); }
+  .month-nav button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  .month-nav .month-label {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    min-width: 140px;
+    text-align: center;
+  }
+
+  .card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-m);
+    padding: 16px;
+  }
+  .card + .card { margin-top: 14px; }
+  .card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    color: var(--ink-soft);
+    text-transform: none;
+  }
+
+  /* ---------- Overview tab ---------- */
+  .hero-total .figure { font-size: 32px; font-weight: 500; color: var(--teal); line-height: 1.1; }
+  .hero-total .label { color: var(--ink-soft); font-size: 13px; margin-top: 4px; }
+
+  .cat-summary-row { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+  .cat-summary-row:last-child { border-bottom: none; }
+  .cat-summary-row .top { display: flex; justify-content: space-between; font-size: 13px; }
+  .cat-summary-row .bar-track { height: 6px; background: var(--line-soft); border-radius: 3px; overflow: hidden; }
+  .cat-summary-row .bar-fill { height: 100%; background: var(--teal); border-radius: 3px; }
+
+  .recent-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 13px;
+  }
+  .recent-item:last-child { border-bottom: none; }
+  .recent-item .rc-cat { font-weight: 600; }
+  .recent-item .rc-date { color: var(--ink-faint); font-size: 12px; margin-top: 2px; }
+  .recent-item .rc-amt { font-weight: 600; color: var(--ochre); white-space: nowrap; }
+
+  .empty-note { color: var(--ink-soft); font-size: 13px; }
+
+  /* ---------- Calendar tab ---------- */
+  .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 6px; }
+  .weekdays div { text-align: center; font-size: 11px; color: var(--ink-soft); padding: 4px 0; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .day {
+    position: relative;
+    aspect-ratio: 1 / 0.9;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-s);
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    background: var(--paper);
+    transition: border-color 0.12s ease, background 0.12s ease;
+    text-align: left;
+    color: var(--ink);
+  }
+  .day:hover { border-color: var(--teal); }
+  .day:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
+  .day.empty { visibility: hidden; cursor: default; }
+  .day.today .num { color: var(--teal); font-weight: 700; }
+  .day .num { font-size: 12px; }
+  .day .amt { font-size: 10px; color: var(--ochre); font-weight: 600; line-height: 1.15; word-break: break-word; }
+
+  /* ---------- Categories tab ---------- */
+  .cat-manage-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 13px;
+  }
+  .cat-manage-row:last-child { border-bottom: none; }
+  .cat-manage-row .name { flex: 1; font-weight: 500; }
+  .cat-manage-row .val { color: var(--ink-soft); white-space: nowrap; }
+  .cat-manage-row button {
+    background: none; border: none; color: var(--ink-soft); cursor: pointer; font-size: 12px; padding: 2px 4px;
+  }
+  .cat-manage-row button[data-del-cat] { color: var(--danger); }
+  .cat-manage-row button:hover { text-decoration: underline; }
+  .add-cat { display: flex; gap: 8px; margin-top: 12px; }
+  .add-cat input {
+    flex: 1; border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+    border-radius: var(--radius-s); padding: 8px 10px; font-size: 13px;
+  }
+  .add-cat button {
+    border: none; background: var(--teal); color: var(--paper-raised);
+    border-radius: var(--radius-s); padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+
+  /* ---------- Other tab ---------- */
+  .settings-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--line-soft);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row .label { font-size: 13px; }
+  .settings-row .desc { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+  .btn-outline {
+    border: 1px solid var(--line); background: var(--paper-raised); color: var(--ink);
+    border-radius: var(--radius-s); padding: 7px 12px; font-size: 12px; cursor: pointer;
+  }
+  .btn-outline.danger { color: var(--danger); border-color: var(--danger); }
+  .btn-outline:hover { border-color: var(--teal); }
+  .seg {
+    display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden;
+  }
+  .seg button {
+    border: none; background: var(--paper-raised); color: var(--ink-soft); padding: 6px 12px; font-size: 12px; cursor: pointer;
+  }
+  .seg button.active { background: var(--teal); color: var(--paper-raised); }
+
+  /* ---------- Bottom tab bar ---------- */
+  .tabbar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--paper-raised);
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    z-index: 40;
+  }
+  .tabbar button {
+    background: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--ink-faint);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: var(--radius-s);
+  }
+  .tabbar button svg { width: 20px; height: 20px; }
+  .tabbar button.active { color: var(--teal); }
+  .tabbar button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(20, 22, 18, 0.42);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 100;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-card {
+    background: var(--paper-raised);
+    border-radius: var(--radius-l);
+    max-width: 420px;
+    width: 100%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  }
+  .modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px 20px 14px;
+  }
+  .modal-head .date-label {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+    margin: 0 0 3px;
+  }
+  .modal-head .weekday-label {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .modal-close {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+    font-size: 15px;
+  }
+  .modal-close:hover { border-color: var(--teal); color: var(--teal); }
+
+  .modal-body {
+    padding: 0 20px 20px;
+    overflow-y: auto;
+  }
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin: 4px 0 10px;
+    border-bottom: 1px dashed var(--line);
+    padding-bottom: 10px;
+  }
+
+  .modal-day-total {
+    color: var(--ochre);
+    font-weight: 600;
+    font-size: 13px;
+    margin: -6px 0 14px;
+  }
+
+  .expense-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+  .expense-item {
+    position: relative;
+    background: var(--paper);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-m);
+    padding: 12px 12px;
+  }
+  .expense-item .row-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 26px;
+  }
+  .expense-item .cat-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--teal);
+    flex-shrink: 0;
+  }
+  .expense-item .ecat { font-weight: 600; font-size: 13px; }
+  .expense-item .row-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 8px;
+  }
+  .expense-item .eamt { font-weight: 600; font-size: 15px; color: var(--teal); }
+  .expense-item .enote { font-size: 12px; color: var(--ink-soft); font-style: italic; text-align: right; max-width: 60%; }
+  .expense-item .del-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    cursor: pointer;
+    padding: 2px;
+    font-size: 15px;
+    line-height: 1;
+  }
+  .expense-item .del-btn:hover { color: var(--danger); }
+
+  .no-entries { color: var(--ink-soft); font-size: 13px; padding: 6px 0 2px; }
+
+  .add-toggle-btn {
+    width: 100%;
+    background: var(--teal);
+    color: var(--paper-raised);
+    border: none;
+    border-radius: 999px;
+    padding: 13px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .add-toggle-btn:hover { opacity: 0.92; }
+
+  form.add-form {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line-soft);
+  }
+  form.add-form.open { display: flex; }
+  form.add-form select,
+  form.add-form input {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: var(--radius-s);
+    padding: 9px 10px;
+    font-size: 13px;
+    font-family: 'Work Sans', sans-serif;
+    width: 100%;
+  }
+  form.add-form select:focus,
+  form.add-form input:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+  form.add-form button.submit {
+    background: var(--ink);
+    color: var(--paper-raised);
+    border: none;
+    border-radius: var(--radius-s);
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  form.add-form button.submit:hover { opacity: 0.9; }
+
+  ::selection { background: var(--ochre-soft); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== Tổng quan ===== -->
+  <section class="view active" id="view-overview">
+    <div class="page-title">Tổng quan</div>
+    <div class="page-sub" id="overviewMonthSub"></div>
+
+    <div class="card hero-total">
+      <div class="figure" id="ovTotal">0 ₫</div>
+      <div class="label">Tổng chi tiêu trong tháng</div>
+    </div>
+
+    <div class="card">
+      <h3>Theo hạng mục</h3>
+      <div id="ovCategorySummary"></div>
+    </div>
+
+    <div class="card">
+      <h3>Gần đây</h3>
+      <div id="ovRecent"></div>
+    </div>
+  </section>
+
+  <!-- ===== Lịch ===== -->
+  <section class="view" id="view-calendar">
+    <div class="page-title">Lịch</div>
+    <div class="page-sub">Chọn một ngày để xem hoặc thêm khoản chi</div>
+    <div class="month-nav">
+      <button id="prevMonth" aria-label="Tháng trước">‹</button>
+      <div class="month-label" id="monthLabel"></div>
+      <button id="nextMonth" aria-label="Tháng sau">›</button>
+    </div>
+    <div class="card">
+      <div class="weekdays"><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div></div>
+      <div class="grid" id="calendarGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== Hạng mục ===== -->
+  <section class="view" id="view-categories">
+    <div class="page-title">Hạng mục</div>
+    <div class="page-sub" id="catMonthSub"></div>
+    <div class="card">
+      <h3>Chi tiêu theo hạng mục (tháng này)</h3>
+      <div id="catList"></div>
+      <div class="add-cat">
+        <input type="text" id="newCatInput" placeholder="Thêm hạng mục mới...">
+        <button id="addCatBtn">Thêm</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Khác ===== -->
+  <section class="view" id="view-other">
+    <div class="page-title">Khác</div>
+    <div class="page-sub">Cài đặt và dữ liệu</div>
+
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="label">Giao diện</div>
+          <div class="desc">Chọn chế độ sáng, tối, hoặc theo hệ thống</div>
+        </div>
+        <div class="seg" id="themeSeg">
+          <button data-theme="light">Sáng</button>
+          <button data-theme="dark">Tối</button>
+          <button data-theme="system">Hệ thống</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="label">Đồng bộ Supabase</div>
+          <div class="desc" id="syncStatusDesc">Chưa cấu hình — dữ liệu chỉ lưu trên máy này.</div>
+        </div>
+        <button class="btn-outline" id="syncNowBtn">Đồng bộ ngay</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="label">Xóa toàn bộ dữ liệu</div>
+          <div class="desc">Xóa tất cả khoản chi và hạng mục đã lưu trên máy này</div>
+        </div>
+        <button class="btn-outline danger" id="resetBtn">Xóa dữ liệu</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="settings-row">
+        <div>
+          <div class="label">Sổ Chi Tiêu</div>
+          <div class="desc">Dữ liệu được lưu ngay trên trình duyệt của bạn.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ===== Bottom tab bar ===== -->
+<nav class="tabbar" id="tabbar">
+  <button data-view="overview" class="active" aria-label="Tổng quan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+    <span>Tổng quan</span>
+  </button>
+  <button data-view="calendar" aria-label="Lịch">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><line x1="3" y1="9.5" x2="21" y2="9.5"></line><line x1="8" y1="2.5" x2="8" y2="6.5"></line><line x1="16" y1="2.5" x2="16" y2="6.5"></line></svg>
+    <span>Lịch</span>
+  </button>
+  <button data-view="categories" aria-label="Hạng mục">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.9 12.9 20.6a2 2 0 0 1-2.83 0L3.4 13.9a2 2 0 0 1-.4-2.2L5.6 5.6A2 2 0 0 1 7.4 4.4h6.2a2 2 0 0 1 1.4.6l5.6 5.6a2 2 0 0 1 0 2.3Z"></path><circle cx="9.5" cy="9.5" r="1.2" fill="currentColor" stroke="none"></circle></svg>
+    <span>Hạng mục</span>
+  </button>
+  <button data-view="other" aria-label="Khác">
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>
+    <span>Khác</span>
+  </button>
+</nav>
+
+<!-- ===== Day detail modal ===== -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <div class="date-label" id="modalDateLabel"></div>
+        <div class="weekday-label" id="modalWeekdayLabel"></div>
+      </div>
+      <button class="modal-close" id="modalClose" aria-label="Đóng">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-label">CÁC KHOẢN CHI TRONG NGÀY</div>
+      <div class="modal-day-total" id="modalDayTotal"></div>
+      <div class="expense-list" id="modalExpenseList"></div>
+      <div class="no-entries" id="modalNoEntries" style="display:none;">Chưa có khoản chi nào trong ngày này.</div>
+
+      <button type="button" class="add-toggle-btn" id="addToggleBtn">+ Thêm khoản chi</button>
+
+      <form class="add-form" id="addForm">
+        <select id="catSelect"></select>
+        <input type="number" id="amountInput" placeholder="Số tiền (₫)" min="0" step="1000" required>
+        <input type="text" id="noteInput" placeholder="Ghi chú (không bắt buộc)">
+        <button type="submit" class="submit">Lưu khoản chi</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ====== Cấu hình Supabase ======
+  // Dán URL và anon key từ Project Settings → API vào 2 dòng dưới đây.
+  // Để trống (giữ nguyên "") nếu bạn chỉ muốn dùng lưu trữ trên máy (localStorage).
+  var SUPABASE_URL = "https://mqnxdclpiyexflgubaaf.supabase.co";
+  var SUPABASE_ANON_KEY = "sb_publishable_aCrbZJ6FMLKSeuhFkv2WXQ_-NYSx5Do";
+
+  var supabaseClient = null;
+  var syncEnabled = false;
+  var lastSyncedAt = null;
+
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase && window.supabase.createClient) {
+    try {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      syncEnabled = true;
+    } catch (e) {
+      console.error("Không thể khởi tạo Supabase:", e);
+    }
+  }
+
+  var STORAGE_KEY = "expense-tracker-entries-v1";
+  var CAT_KEY = "expense-tracker-categories-v1";
+  var THEME_KEY = "expense-tracker-theme-v1";
+  var DEFAULT_CATEGORIES = ["Ăn uống", "Học tập", "Tiền điện", "Tiền phòng", "Xăng xe", "Khác"];
+  var WEEKDAY_NAMES = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+  var MONTH_NAMES = ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"];
+
+  var state = {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+    selectedDate: null,
+    entries: {},
+    categories: DEFAULT_CATEGORIES.slice(),
+    activeView: "overview"
+  };
+
+  function loadLocal() {
+    try { var raw = localStorage.getItem(STORAGE_KEY); state.entries = raw ? JSON.parse(raw) : {}; }
+    catch (e) { state.entries = {}; }
+    try { var rawCat = localStorage.getItem(CAT_KEY); state.categories = rawCat ? JSON.parse(rawCat) : DEFAULT_CATEGORIES.slice(); }
+    catch (e) { state.categories = DEFAULT_CATEGORIES.slice(); }
+  }
+
+  function loadData() {
+    loadLocal();
+    try {
+      var theme = localStorage.getItem(THEME_KEY) || "system";
+      applyTheme(theme, false);
+    } catch (e) { /* ignore */ }
+    updateSyncStatusUI();
+    if (syncEnabled) pullFromSupabase();
+  }
+
+  function saveEntries() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries)); }
+    catch (e) { console.error("Không thể lưu dữ liệu:", e); }
+    pushToSupabase("entries", state.entries);
+  }
+  function saveCategories() {
+    try { localStorage.setItem(CAT_KEY, JSON.stringify(state.categories)); }
+    catch (e) { console.error("Không thể lưu hạng mục:", e); }
+    pushToSupabase("categories", state.categories);
+  }
+
+  function updateSyncStatusUI() {
+    var descEl = document.getElementById("syncStatusDesc");
+    if (!descEl) return;
+    if (!syncEnabled) {
+      descEl.textContent = "Chưa cấu hình — dữ liệu chỉ lưu trên máy này.";
+    } else if (lastSyncedAt) {
+      descEl.textContent = "Đã kết nối. Đồng bộ lần cuối lúc " + lastSyncedAt.toLocaleTimeString("vi-VN");
+    } else {
+      descEl.textContent = "Đã kết nối Supabase. Đang đồng bộ...";
+    }
+  }
+
+  function pushToSupabase(key, value) {
+    if (!syncEnabled || !supabaseClient) return;
+    supabaseClient.from("app_data")
+      .upsert({ key: key, value: value, updated_at: new Date().toISOString() })
+      .then(function (res) {
+        if (res.error) { console.error("Lỗi đồng bộ Supabase:", res.error); return; }
+        lastSyncedAt = new Date();
+        updateSyncStatusUI();
+      })
+      .catch(function (e) { console.error("Lỗi đồng bộ Supabase:", e); });
+  }
+
+  function pullFromSupabase() {
+    if (!syncEnabled || !supabaseClient) return;
+    supabaseClient.from("app_data").select("key,value").in("key", ["entries", "categories"])
+      .then(function (res) {
+        if (res.error) { console.error("Lỗi tải dữ liệu từ Supabase:", res.error); updateSyncStatusUI(); return; }
+        var rows = res.data || [];
+        var gotEntries = false, gotCategories = false;
+        rows.forEach(function (row) {
+          if (row.key === "entries" && row.value) { state.entries = row.value; gotEntries = true; }
+          if (row.key === "categories" && row.value) { state.categories = row.value; gotCategories = true; }
+        });
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries)); } catch (e) { /* ignore */ }
+        try { localStorage.setItem(CAT_KEY, JSON.stringify(state.categories)); } catch (e) { /* ignore */ }
+
+        // Nếu bảng còn trống (lần đầu dùng), đẩy dữ liệu hiện có trên máy lên Supabase
+        if (!gotEntries) pushToSupabase("entries", state.entries);
+        if (!gotCategories) pushToSupabase("categories", state.categories);
+
+        lastSyncedAt = new Date();
+        updateSyncStatusUI();
+        renderActiveView();
+      })
+      .catch(function (e) { console.error("Lỗi tải dữ liệu từ Supabase:", e); updateSyncStatusUI(); });
+  }
+
+  document.getElementById("syncNowBtn").addEventListener("click", function () {
+    if (!syncEnabled) {
+      alert("Chưa cấu hình Supabase. Hãy dán SUPABASE_URL và SUPABASE_ANON_KEY vào đầu file trước.");
+      return;
+    }
+    pullFromSupabase();
+  });
+
+  function applyTheme(theme, persist) {
+    if (theme === "system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
+    document.querySelectorAll("#themeSeg button").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-theme") === theme);
+    });
+    if (persist !== false) {
+      try { localStorage.setItem(THEME_KEY, theme); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function formatVND(n) { return Math.round(n).toLocaleString("vi-VN") + " ₫"; }
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  function dateKey(y, m, d) { return y + "-" + pad2(m + 1) + "-" + pad2(d); }
+  function isoToday() { var t = new Date(); return dateKey(t.getFullYear(), t.getMonth(), t.getDate()); }
+  function escapeHtml(s) { var div = document.createElement("div"); div.textContent = s; return div.innerHTML; }
+
+  function dayTotal(key) {
+    var list = state.entries[key] || [];
+    var sum = 0;
+    for (var i = 0; i < list.length; i++) sum += Number(list[i].amount) || 0;
+    return sum;
+  }
+
+  function monthEntries(year, month) {
+    var prefix = year + "-" + pad2(month + 1);
+    var out = [];
+    for (var key in state.entries) {
+      if (key.indexOf(prefix) === 0) {
+        var list = state.entries[key];
+        for (var i = 0; i < list.length; i++) out.push({ key: key, item: list[i] });
+      }
+    }
+    return out;
+  }
+
+  function categoryUsage(name) {
+    var count = 0, sum = 0;
+    for (var key in state.entries) {
+      state.entries[key].forEach(function (item) {
+        if (item.category === name) { count += 1; sum += Number(item.amount) || 0; }
+      });
+    }
+    return { count: count, sum: sum };
+  }
+
+  function reassignCategoryEverywhere(oldName, newName) {
+    for (var key in state.entries) {
+      state.entries[key].forEach(function (item) {
+        if (item.category === oldName) item.category = newName;
+      });
+    }
+    saveEntries();
+  }
+
+  function categoryTotals(year, month) {
+    var list = monthEntries(year, month);
+    var totals = {};
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i].item.category;
+      totals[c] = (totals[c] || 0) + (Number(list[i].item.amount) || 0);
+    }
+    state.categories.forEach(function (c) { if (!(c in totals)) totals[c] = 0; });
+    return totals;
+  }
+
+  /* ---------------- Tab switching ---------------- */
+  function switchView(view) {
+    state.activeView = view;
+    document.querySelectorAll(".view").forEach(function (v) { v.classList.remove("active"); });
+    document.getElementById("view-" + view).classList.add("active");
+    document.querySelectorAll("#tabbar button").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-view") === view);
+    });
+    renderActiveView();
+  }
+
+  document.getElementById("tabbar").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-view]");
+    if (!btn) return;
+    switchView(btn.getAttribute("data-view"));
+  });
+
+  function renderActiveView() {
+    if (state.activeView === "overview") renderOverview();
+    else if (state.activeView === "calendar") renderCalendarView();
+    else if (state.activeView === "categories") renderCategoriesView();
+  }
+
+  /* ---------------- Overview ---------------- */
+  function renderOverview() {
+    document.getElementById("overviewMonthSub").textContent = MONTH_NAMES[state.month] + " " + state.year;
+
+    var list = monthEntries(state.year, state.month);
+    var total = 0;
+    list.forEach(function (e) { total += Number(e.item.amount) || 0; });
+    document.getElementById("ovTotal").textContent = formatVND(total);
+
+    var totals = categoryTotals(state.year, state.month);
+    var rows = Object.keys(totals).map(function (c) { return { name: c, total: totals[c] }; })
+      .filter(function (r) { return r.total > 0; })
+      .sort(function (a, b) { return b.total - a.total; });
+
+    var catEl = document.getElementById("ovCategorySummary");
+    if (rows.length === 0) {
+      catEl.innerHTML = '<div class="empty-note">Chưa có khoản chi nào trong tháng này.</div>';
+    } else {
+      catEl.innerHTML = rows.map(function (r) {
+        var pct = total > 0 ? Math.round((r.total / total) * 100) : 0;
+        return '<div class="cat-summary-row">' +
+          '<div class="top"><span>' + escapeHtml(r.name) + '</span><span class="val" style="font-weight:600">' + formatVND(r.total) + '</span></div>' +
+          '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+          '</div>';
+      }).join("");
+    }
+
+    var recentEl = document.getElementById("ovRecent");
+    var sorted = list.slice().sort(function (a, b) { return b.key.localeCompare(a.key); }).slice(0, 6);
+    if (sorted.length === 0) {
+      recentEl.innerHTML = '<div class="empty-note">Chưa có khoản chi nào.</div>';
+    } else {
+      recentEl.innerHTML = sorted.map(function (e) {
+        var parts = e.key.split("-");
+        var niceDate = parts[2] + "/" + parts[1];
+        return '<div class="recent-item">' +
+          '<div><div class="rc-cat">' + escapeHtml(e.item.category) + '</div><div class="rc-date">' + niceDate + (e.item.note ? " · " + escapeHtml(e.item.note) : "") + '</div></div>' +
+          '<div class="rc-amt">' + formatVND(e.item.amount) + '</div>' +
+          '</div>';
+      }).join("");
+    }
+  }
+
+  /* ---------------- Calendar ---------------- */
+  function renderMonthLabel() {
+    document.getElementById("monthLabel").textContent = MONTH_NAMES[state.month] + " " + state.year;
+  }
+
+  function renderCalendarView() {
+    renderMonthLabel();
+    var grid = document.getElementById("calendarGrid");
+    grid.innerHTML = "";
+    var firstDay = new Date(state.year, state.month, 1).getDay();
+    var leadingEmpty = (firstDay === 0) ? 6 : firstDay - 1;
+    var daysInMonth = new Date(state.year, state.month + 1, 0).getDate();
+    var today = isoToday();
+
+    for (var i = 0; i < leadingEmpty; i++) {
+      var empty = document.createElement("div");
+      empty.className = "day empty";
+      grid.appendChild(empty);
+    }
+
+    for (var d = 1; d <= daysInMonth; d++) {
+      var key = dateKey(state.year, state.month, d);
+      var cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "day";
+      if (key === today) cell.classList.add("today");
+
+      var numEl = document.createElement("div");
+      numEl.className = "num";
+      numEl.textContent = d;
+      cell.appendChild(numEl);
+
+      var total = dayTotal(key);
+      var amtEl = document.createElement("div");
+      amtEl.className = "amt";
+      amtEl.innerHTML = total > 0 ? formatVND(total) : "&nbsp;";
+      cell.appendChild(amtEl);
+
+      cell.addEventListener("click", (function (k) { return function () { openDayModal(k); }; })(key));
+      grid.appendChild(cell);
+    }
+  }
+
+  document.getElementById("prevMonth").addEventListener("click", function () {
+    state.month -= 1; if (state.month < 0) { state.month = 11; state.year -= 1; }
+    renderActiveView();
+  });
+  document.getElementById("nextMonth").addEventListener("click", function () {
+    state.month += 1; if (state.month > 11) { state.month = 0; state.year += 1; }
+    renderActiveView();
+  });
+
+  /* ---------------- Categories tab ---------------- */
+  function renderCategoriesView() {
+    document.getElementById("catMonthSub").textContent = MONTH_NAMES[state.month] + " " + state.year;
+    var totals = categoryTotals(state.year, state.month);
+    var rows = state.categories.map(function (c) { return { name: c, total: totals[c] || 0 }; })
+      .sort(function (a, b) { return b.total - a.total; });
+
+    var listEl = document.getElementById("catList");
+    listEl.innerHTML = rows.map(function (r) {
+      return '<div class="cat-manage-row">' +
+        '<span class="name">' + escapeHtml(r.name) + '</span>' +
+        '<span class="val">' + formatVND(r.total) + '</span>' +
+        '<button data-rename-cat="' + escapeHtml(r.name) + '">Sửa</button>' +
+        '<button data-del-cat="' + escapeHtml(r.name) + '">Xóa</button>' +
+        '</div>';
+    }).join("");
+
+    listEl.querySelectorAll("[data-del-cat]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var name = btn.getAttribute("data-del-cat");
+        if (state.categories.length <= 1) {
+          alert("Cần giữ lại ít nhất một hạng mục.");
+          return;
+        }
+        var usage = categoryUsage(name);
+        var fallback = "Khác";
+        var msg = usage.count > 0
+          ? "Hạng mục \"" + name + "\" đang có " + usage.count + " khoản chi (tổng " + formatVND(usage.sum) + "). Xóa sẽ chuyển các khoản chi này sang \"" + fallback + "\". Tiếp tục?"
+          : "Xóa hạng mục \"" + name + "\"?";
+        if (!confirm(msg)) return;
+
+        if (name === fallback) {
+          // deleting the fallback category itself: pick another remaining category as the new fallback
+          var remaining = state.categories.filter(function (c) { return c !== name; });
+          fallback = remaining[0];
+        }
+        if (usage.count > 0) reassignCategoryEverywhere(name, fallback);
+        if (usage.count > 0 && state.categories.indexOf(fallback) === -1) {
+          state.categories.push(fallback);
+        }
+        state.categories = state.categories.filter(function (c) { return c !== name; });
+        saveCategories();
+        renderCategoriesView();
+      });
+    });
+
+    listEl.querySelectorAll("[data-rename-cat]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var oldName = btn.getAttribute("data-rename-cat");
+        var newName = prompt("Đổi tên hạng mục:", oldName);
+        if (newName === null) return;
+        newName = newName.trim();
+        if (!newName || newName === oldName) return;
+        if (state.categories.indexOf(newName) !== -1) {
+          alert("Hạng mục \"" + newName + "\" đã tồn tại.");
+          return;
+        }
+        state.categories = state.categories.map(function (c) { return c === oldName ? newName : c; });
+        reassignCategoryEverywhere(oldName, newName);
+        saveCategories();
+        renderCategoriesView();
+      });
+    });
+  }
+
+  document.getElementById("addCatBtn").addEventListener("click", function () {
+    var input = document.getElementById("newCatInput");
+    var val = input.value.trim();
+    if (!val) return;
+    if (state.categories.indexOf(val) === -1) {
+      state.categories.push(val);
+      saveCategories();
+      input.value = "";
+      renderCategoriesView();
+    }
+  });
+  document.getElementById("newCatInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); document.getElementById("addCatBtn").click(); }
+  });
+
+  /* ---------------- Other tab ---------------- */
+  document.getElementById("themeSeg").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-theme]");
+    if (!btn) return;
+    applyTheme(btn.getAttribute("data-theme"), true);
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    var ok = confirm("Bạn có chắc muốn xóa toàn bộ dữ liệu chi tiêu và hạng mục đã lưu? Hành động này không thể hoàn tác.");
+    if (!ok) return;
+    state.entries = {};
+    state.categories = DEFAULT_CATEGORIES.slice();
+    saveEntries();
+    saveCategories();
+    renderActiveView();
+  });
+
+  /* ---------------- Day detail modal ---------------- */
+  var modalBackdrop = document.getElementById("modalBackdrop");
+  var addForm = document.getElementById("addForm");
+  var addToggleBtn = document.getElementById("addToggleBtn");
+
+  function openDayModal(key) {
+    state.selectedDate = key;
+    var parts = key.split("-");
+    var y = parseInt(parts[0], 10), m = parseInt(parts[1], 10) - 1, d = parseInt(parts[2], 10);
+    var dow = new Date(y, m, d).getDay();
+
+    document.getElementById("modalDateLabel").textContent = d + " " + MONTH_NAMES[m].toLowerCase() + " năm " + y;
+    document.getElementById("modalWeekdayLabel").textContent = WEEKDAY_NAMES[dow];
+
+    addForm.classList.remove("open");
+    renderModalList();
+    populateCategorySelect();
+    modalBackdrop.classList.add("open");
+  }
+
+  function closeDayModal() {
+    modalBackdrop.classList.remove("open");
+    state.selectedDate = null;
+    if (state.activeView === "calendar") renderCalendarView();
+    if (state.activeView === "overview") renderOverview();
+    if (state.activeView === "categories") renderCategoriesView();
+  }
+
+  document.getElementById("modalClose").addEventListener("click", closeDayModal);
+  modalBackdrop.addEventListener("click", function (e) {
+    if (e.target === modalBackdrop) closeDayModal();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && modalBackdrop.classList.contains("open")) closeDayModal();
+  });
+
+  function populateCategorySelect() {
+    var sel = document.getElementById("catSelect");
+    sel.innerHTML = state.categories.map(function (c) {
+      return '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>';
+    }).join("");
+  }
+
+  function renderModalList() {
+    var key = state.selectedDate;
+    var list = state.entries[key] || [];
+    var total = dayTotal(key);
+
+    document.getElementById("modalDayTotal").textContent = total > 0 ? "Tổng ngày: " + formatVND(total) : "";
+
+    var listEl = document.getElementById("modalExpenseList");
+    var noEntriesEl = document.getElementById("modalNoEntries");
+
+    if (list.length === 0) {
+      listEl.innerHTML = "";
+      noEntriesEl.style.display = "block";
+    } else {
+      noEntriesEl.style.display = "none";
+      listEl.innerHTML = list.map(function (item) {
+        return '<div class="expense-item" data-id="' + item.id + '">' +
+          '<button class="del-btn" data-remove="' + item.id + '" aria-label="Xóa">✕</button>' +
+          '<div class="row-top"><span class="cat-dot"></span><span class="ecat">' + escapeHtml(item.category) + '</span></div>' +
+          '<div class="row-bottom">' +
+            '<span class="eamt">' + formatVND(item.amount) + '</span>' +
+            (item.note ? '<span class="enote">' + escapeHtml(item.note) + '</span>' : '') +
+          '</div>' +
+        '</div>';
+      }).join("");
+
+      listEl.querySelectorAll("[data-remove]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var id = btn.getAttribute("data-remove");
+          state.entries[key] = (state.entries[key] || []).filter(function (item) { return item.id !== id; });
+          if (state.entries[key].length === 0) delete state.entries[key];
+          saveEntries();
+          renderModalList();
+        });
+      });
+    }
+  }
+
+  addToggleBtn.addEventListener("click", function () {
+    var isOpen = addForm.classList.toggle("open");
+    addToggleBtn.textContent = isOpen ? "✕ Đóng" : "+ Thêm khoản chi";
+    if (isOpen) document.getElementById("amountInput").focus();
+  });
+
+  addForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var key = state.selectedDate;
+    var cat = document.getElementById("catSelect").value;
+    var amt = parseFloat(document.getElementById("amountInput").value);
+    var note = document.getElementById("noteInput").value.trim();
+    if (!amt || amt <= 0) return;
+
+    if (!state.entries[key]) state.entries[key] = [];
+    state.entries[key].push({
+      id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+      category: cat,
+      amount: amt,
+      note: note
+    });
+    saveEntries();
+
+    document.getElementById("amountInput").value = "";
+    document.getElementById("noteInput").value = "";
+    addForm.classList.remove("open");
+    addToggleBtn.textContent = "+ Thêm khoản chi";
+    renderModalList();
+  });
+
+  loadData();
+  renderActiveView();
+})();
+</script>
+</body>
+</html>
